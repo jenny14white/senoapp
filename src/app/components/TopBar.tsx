@@ -1,5 +1,5 @@
 import { useView } from '../contexts/ViewContext';
-import { useNavigate, useLocation } from 'react-router';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
 export function TopBar() {

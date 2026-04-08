@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { motion } from "motion/react";
-import logoImage from "figma:asset/d7254e7dbad08b9032b9a380c5ca81fe22ea1b6d.png";
+import { motion } from "framer-motion";
+const logoImage = "/vite.svg";
 
 export function Register() {
   const navigate = useNavigate();

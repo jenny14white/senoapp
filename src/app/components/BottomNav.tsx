@@ -1,5 +1,5 @@
 import { Home, Receipt, Briefcase, Target, User } from 'lucide-react';
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router-dom';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
