@@ -1,9 +1,23 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-} from "react";
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  sendEmailVerification as firebaseSendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  User,
+} from 'firebase/auth';
+import {
+  doc,
+  getDoc,
+  serverTimestamp,
+  setDoc,
+} from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 
 export interface AuthUser {
   id: string;
@@ -18,205 +32,133 @@ interface AuthContextType {
   isOnboarded: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  changePassword: (
-    currentPassword: string,
-    newPassword: string,
-  ) => Promise<void>;
-  completeOnboarding: () => void;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  completeOnboarding: () => Promise<void>;
   sendEmailVerification: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(
-  undefined,
-);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+const mapFirebaseUser = async (firebaseUser: User): Promise<AuthUser> => {
+  const userRef = doc(db, 'users', firebaseUser.uid);
+  const userSnap = await getDoc(userRef);
+  const name = userSnap.exists() ? userSnap.data().name : firebaseUser.displayName;
+
+  return {
+    id: firebaseUser.uid,
+    email: firebaseUser.email || '',
+    name,
+    emailVerified: firebaseUser.emailVerified,
+  };
+};
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState(false);
 
   useEffect(() => {
-    // Load user from localStorage (mock auth persistence)
-    const savedUser = localStorage.getItem("finapp-auth-user");
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsLoading(true);
 
-    if (savedUser) {
-      const authUser = JSON.parse(savedUser);
-      setUser(authUser);
-      localStorage.setItem(
-        "finapp-auth-user",
-        JSON.stringify(authUser),
-      );
-      
-      // Check onboarding status for this user
-      const onboardingKey = `finapp-onboarded-${authUser.email}`;
-      const savedOnboarding = localStorage.getItem(onboardingKey);
-      setIsOnboarded(savedOnboarding === 'true');
-    }
+      if (!firebaseUser) {
+        setUser(null);
+        setIsOnboarded(false);
+        setIsLoading(false);
+        return;
+      }
 
-    setIsLoading(false);
+      const mappedUser = await mapFirebaseUser(firebaseUser);
+      setUser(mappedUser);
+
+      const onboardingRef = doc(db, 'userSettings', firebaseUser.uid);
+      const onboardingSnap = await getDoc(onboardingRef);
+      setIsOnboarded(onboardingSnap.exists() && onboardingSnap.data().onboarded === true);
+
+      setIsLoading(false);
+    });
+
+    return () => unsub();
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Mock login - in real app, this would call Firebase Auth
     setIsLoading(true);
+    try {
+      const credential = await signInWithEmailAndPassword(auth, email, password);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Check if user exists in localStorage
-    const savedUsers = localStorage.getItem("finapp-users");
-    const users = savedUsers ? JSON.parse(savedUsers) : [];
-    const foundUser = users.find(
-      (u: any) => u.email === email && u.password === password,
-    );
-
-    if (!foundUser) {
+      if (!credential.user.emailVerified) {
+        await signOut(auth);
+        throw new Error('Potwierdź email przed logowaniem. Sprawdź skrzynkę pocztową.');
+      }
+    } finally {
       setIsLoading(false);
-      throw new Error("Nieprawidłowy email lub hasło");
     }
-
-    const authUser: AuthUser = {
-      id: foundUser.id,
-      email: foundUser.email,
-      name: foundUser.name,
-      emailVerified: foundUser.emailVerified || false,
-    };
-
-    setUser(authUser);
-    localStorage.setItem(
-      "finapp-auth-user",
-      JSON.stringify(authUser),
-    );
-    
-    // Check onboarding status for this user
-    const onboardingKey = `finapp-onboarded-${authUser.email}`;
-    const savedOnboarding = localStorage.getItem(onboardingKey);
-    setIsOnboarded(savedOnboarding === 'true');
-    
-    setIsLoading(false);
   };
 
   const register = async (email: string, password: string) => {
-    // Mock registration - in real app, this would call Firebase Auth
     setIsLoading(true);
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Check if user already exists
-    const savedUsers = localStorage.getItem("finapp-users");
-    const users = savedUsers ? JSON.parse(savedUsers) : [];
-
-    if (users.find((u: any) => u.email === email)) {
-      setIsLoading(false);
-      throw new Error(
-        "Użytkownik z tym adresem email już istnieje",
+      await setDoc(
+        doc(db, 'users', credential.user.uid),
+        {
+          email,
+          name: email.split('@')[0],
+          emailVerified: false,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
       );
+
+      await firebaseSendEmailVerification(credential.user);
+      await signOut(auth);
+    } finally {
+      setIsLoading(false);
     }
-
-    // Create new user
-    const newUser = {
-      id: Date.now().toString(),
-      email,
-      password, // In real app, never store plain passwords!
-      emailVerified: false,
-    };
-
-    users.push(newUser);
-    localStorage.setItem("finapp-users", JSON.stringify(users));
-
-    const authUser: AuthUser = {
-      id: newUser.id,
-      email: newUser.email,
-      emailVerified: false,
-    };
-
-    setUser(authUser);
-    localStorage.setItem(
-      "finapp-auth-user",
-      JSON.stringify(authUser),
-    );
-    setIsLoading(false);
   };
 
-  const logout = () => {
-    setUser(null);
-    setIsOnboarded(false);
-    localStorage.removeItem("finapp-auth-user");
-    localStorage.removeItem("finapp-onboarded");
+  const logout = async () => {
+    await signOut(auth);
   };
 
   const resetPassword = async (email: string) => {
-    // Mock password reset - in real app, this would call Firebase Auth
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    // In real app, send password reset email
+    await sendPasswordResetEmail(auth, email);
   };
 
-  const changePassword = async (
-    currentPassword: string,
-    newPassword: string,
-  ) => {
-    // Mock password change - in real app, this would call Firebase Auth
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const currentUser = auth.currentUser;
 
-    const savedUsers = localStorage.getItem("finapp-users");
-    const users = savedUsers ? JSON.parse(savedUsers) : [];
-    const userIndex = users.findIndex(
-      (u: any) => u.id === user?.id,
+    if (!currentUser || !currentUser.email) {
+      throw new Error('Brak zalogowanego użytkownika');
+    }
+
+    const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
+    await reauthenticateWithCredential(currentUser, credential);
+    await updatePassword(currentUser, newPassword);
+  };
+
+  const completeOnboarding = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    await setDoc(
+      doc(db, 'userSettings', currentUser.uid),
+      { onboarded: true, updatedAt: serverTimestamp() },
+      { merge: true },
     );
-
-    if (userIndex !== -1) {
-      if (users[userIndex].password !== currentPassword) {
-        throw new Error("Nieprawidłowe obecne hasło");
-      }
-      users[userIndex].password = newPassword;
-      localStorage.setItem(
-        "finapp-users",
-        JSON.stringify(users),
-      );
-    }
-  };
-
-  const completeOnboarding = () => {
-    if (user) {
-      setIsOnboarded(true);
-      const onboardingKey = `finapp-onboarded-${user.email}`;
-      localStorage.setItem(onboardingKey, 'true');
-    }
+    setIsOnboarded(true);
   };
 
   const sendEmailVerification = async () => {
-    // Mock email verification - in real app, this would call Firebase Auth
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    if (user) {
-      const updatedUser = { ...user, emailVerified: true };
-      setUser(updatedUser);
-      localStorage.setItem(
-        "finapp-auth-user",
-        JSON.stringify(updatedUser),
-      );
-
-      // Update in users list
-      const savedUsers = localStorage.getItem("finapp-users");
-      const users = savedUsers ? JSON.parse(savedUsers) : [];
-      const userIndex = users.findIndex(
-        (u: any) => u.id === user.id,
-      );
-      if (userIndex !== -1) {
-        users[userIndex].emailVerified = true;
-        localStorage.setItem(
-          "finapp-users",
-          JSON.stringify(users),
-        );
-      }
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Brak zalogowanego użytkownika');
     }
+    await firebaseSendEmailVerification(currentUser);
   };
 
   return (
@@ -242,7 +184,7 @@ export function AuthProvider({
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
+    throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
 }

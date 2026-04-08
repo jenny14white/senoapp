@@ -1,7 +1,7 @@
 import { User, Palette, LogOut, Copy, Check, Link as LinkIcon, X, Settings, Trash2, Download, Upload, DollarSign, Target, Receipt, Users as UsersIcon, Lock, StickyNote, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { useApp, IncomeType } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useExtendedApp } from '../contexts/ExtendedAppContext';
@@ -59,8 +59,8 @@ export function Profile() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 

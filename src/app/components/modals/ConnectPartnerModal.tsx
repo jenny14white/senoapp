@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../../contexts/AppContext';
+import { toast } from 'sonner';
 
 interface ConnectPartnerModalProps {
   isOpen: boolean;
@@ -12,13 +13,18 @@ export function ConnectPartnerModal({ isOpen, onClose }: ConnectPartnerModalProp
   const [code, setCode] = useState('');
   const { connectPartner } = useApp();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim()) return;
 
-    connectPartner(code.trim().toUpperCase());
-    setCode('');
-    onClose();
+    try {
+      await connectPartner(code.trim().toUpperCase());
+      toast.success('Połączono z partnerem');
+      setCode('');
+      onClose();
+    } catch (error: any) {
+      toast.error(error.message || 'Nie udało się połączyć z partnerem');
+    }
   };
 
   return (

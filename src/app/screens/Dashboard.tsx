@@ -1,7 +1,7 @@
 import { TrendingUp, Receipt, DollarSign, Target, Plus, Calendar, RefreshCw } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useView } from '../contexts/ViewContext';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AddIncomeModal } from '../components/modals/AddIncomeModal';
