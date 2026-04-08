@@ -40,8 +40,8 @@ export function Register() {
     setIsLoading(true);
     try {
       await register(email, password);
-      toast.success("Konto zostało utworzone pomyślnie");
-      navigate("/");
+      toast.success("Konto utworzone. Wysłaliśmy email potwierdzający — potwierdź konto i zaloguj się.");
+      navigate("/login");
     } catch (error: any) {
       toast.error(error.message || "Błąd podczas rejestracji");
     } finally {

@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { useAuth } from './AuthContext';
 
 export type ExpenseCategory = 'food' | 'transport' | 'housing' | 'entertainment' | 'health' | 'other';
 
@@ -10,11 +13,11 @@ export interface Note {
 }
 
 export interface LegacyMonthlyArchive {
-  month: string; // format: YYYY-MM
+  month: string;
   income: number;
   expenses: number;
   balance: number;
-  data: any; // full snapshot of that month
+  data: unknown;
 }
 
 export interface FamilyMember {
@@ -43,22 +46,44 @@ interface ExtendedAppContextType {
   monthlyArchive: LegacyMonthlyArchive[];
   familyMembers: FamilyMember[];
   tutorials: Tutorial;
-  addNote: (content: string) => void;
-  updateNote: (id: string, content: string) => void;
-  deleteNote: (id: string) => void;
-  addFamilyMember: (code: string, name: string, permissions: FamilyMember['permissions']) => void;
-  removeFamilyMember: (code: string) => void;
-  updateFamilyPermissions: (code: string, permissions: Partial<FamilyMember['permissions']>) => void;
-  completeTutorial: (screen: keyof Tutorial) => void;
-  archiveCurrentMonth: () => void;
+  addNote: (content: string) => Promise<void>;
+  updateNote: (id: string, content: string) => Promise<void>;
+  deleteNote: (id: string) => Promise<void>;
+  addFamilyMember: (code: string, name: string, permissions: FamilyMember['permissions']) => Promise<void>;
+  removeFamilyMember: (code: string) => Promise<void>;
+  updateFamilyPermissions: (code: string, permissions: Partial<FamilyMember['permissions']>) => Promise<void>;
+  completeTutorial: (screen: keyof Tutorial) => Promise<void>;
+  archiveCurrentMonth: () => Promise<void>;
   getArchiveByMonth: (month: string) => LegacyMonthlyArchive | undefined;
   exportToCSV: () => string;
   exportToPDF: () => void;
 }
 
+interface ExtendedData {
+  notes: Note[];
+  monthlyArchive: LegacyMonthlyArchive[];
+  familyMembers: FamilyMember[];
+  tutorials: Tutorial;
+}
+
 const ExtendedAppContext = createContext<ExtendedAppContextType | undefined>(undefined);
 
+const emptyExtendedData: ExtendedData = {
+  notes: [],
+  monthlyArchive: [],
+  familyMembers: [],
+  tutorials: {
+    dashboard: false,
+    expenses: false,
+    work: false,
+    goals: false,
+  },
+};
+
 export function ExtendedAppProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const [data, setData] = useState<ExtendedData>(emptyExtendedData);
+
   const expenseCategories = [
     { value: 'food' as ExpenseCategory, label: 'Jedzenie' },
     { value: 'transport' as ExpenseCategory, label: 'Transport' },
@@ -68,126 +93,130 @@ export function ExtendedAppProvider({ children }: { children: React.ReactNode })
     { value: 'other' as ExpenseCategory, label: 'Inne' },
   ];
 
-  const [notes, setNotes] = useState<Note[]>(() => {
-    const saved = localStorage.getItem('finapp-notes');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [monthlyArchive, setMonthlyArchive] = useState<LegacyMonthlyArchive[]>(() => {
-    const saved = localStorage.getItem('finapp-archive');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>(() => {
-    const saved = localStorage.getItem('finapp-family');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [tutorials, setTutorials] = useState<Tutorial>(() => {
-    const saved = localStorage.getItem('finapp-tutorials');
-    return saved ? JSON.parse(saved) : {
-      dashboard: false,
-      expenses: false,
-      work: false,
-      goals: false,
-    };
-  });
-
   useEffect(() => {
-    localStorage.setItem('finapp-notes', JSON.stringify(notes));
-  }, [notes]);
+    if (!user?.id) {
+      setData(emptyExtendedData);
+      return;
+    }
 
-  useEffect(() => {
-    localStorage.setItem('finapp-archive', JSON.stringify(monthlyArchive));
-  }, [monthlyArchive]);
+    const ref = doc(db, 'userExtendedData', user.id);
+    const unsubscribe = onSnapshot(ref, async (snapshot) => {
+      if (!snapshot.exists()) {
+        await setDoc(
+          ref,
+          {
+            ...emptyExtendedData,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
+        return;
+      }
 
-  useEffect(() => {
-    localStorage.setItem('finapp-family', JSON.stringify(familyMembers));
-  }, [familyMembers]);
+      const remote = snapshot.data();
+      setData({
+        notes: remote.notes || [],
+        monthlyArchive: remote.monthlyArchive || [],
+        familyMembers: remote.familyMembers || [],
+        tutorials: remote.tutorials || emptyExtendedData.tutorials,
+      });
+    });
 
-  useEffect(() => {
-    localStorage.setItem('finapp-tutorials', JSON.stringify(tutorials));
-  }, [tutorials]);
+    return () => unsubscribe();
+  }, [user?.id]);
 
-  const addNote = (content: string) => {
+  const save = async (next: ExtendedData) => {
+    if (!user?.id) return;
+
+    setData(next);
+    await setDoc(
+      doc(db, 'userExtendedData', user.id),
+      {
+        ...next,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  };
+
+  const addNote = async (content: string) => {
+    const now = new Date().toISOString();
     const newNote: Note = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       content,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
-    setNotes(prev => [newNote, ...prev]);
+    await save({ ...data, notes: [newNote, ...data.notes] });
   };
 
-  const updateNote = (id: string, content: string) => {
-    setNotes(prev => prev.map(note =>
-      note.id === id
-        ? { ...note, content, updatedAt: new Date().toISOString() }
-        : note
-    ));
+  const updateNote = async (id: string, content: string) => {
+    await save({
+      ...data,
+      notes: data.notes.map((note) => (note.id === id ? { ...note, content, updatedAt: new Date().toISOString() } : note)),
+    });
   };
 
-  const deleteNote = (id: string) => {
-    setNotes(prev => prev.filter(note => note.id !== id));
+  const deleteNote = async (id: string) => {
+    await save({ ...data, notes: data.notes.filter((note) => note.id !== id) });
   };
 
-  const addFamilyMember = (code: string, name: string, permissions: FamilyMember['permissions']) => {
+  const addFamilyMember = async (code: string, name: string, permissions: FamilyMember['permissions']) => {
     const newMember: FamilyMember = {
       code,
       name,
       connectedAt: new Date().toISOString(),
       permissions,
     };
-    setFamilyMembers(prev => [...prev, newMember]);
+    await save({ ...data, familyMembers: [...data.familyMembers, newMember] });
   };
 
-  const removeFamilyMember = (code: string) => {
-    setFamilyMembers(prev => prev.filter(member => member.code !== code));
+  const removeFamilyMember = async (code: string) => {
+    await save({ ...data, familyMembers: data.familyMembers.filter((member) => member.code !== code) });
   };
 
-  const updateFamilyPermissions = (code: string, permissions: Partial<FamilyMember['permissions']>) => {
-    setFamilyMembers(prev => prev.map(member =>
-      member.code === code
-        ? { ...member, permissions: { ...member.permissions, ...permissions } }
-        : member
-    ));
-  };
-
-  const completeTutorial = (screen: keyof Tutorial) => {
-    setTutorials(prev => ({ ...prev, [screen]: true }));
-  };
-
-  const archiveCurrentMonth = () => {
-    const now = new Date();
-    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    
-    // Get current data from AppContext (would need to be passed as props or accessed differently)
-    const archive: LegacyMonthlyArchive = {
-      month,
-      income: 0, // Would get from AppContext
-      expenses: 0, // Would get from AppContext
-      balance: 0, // Would get from AppContext
-      data: {}, // Would store full snapshot
-    };
-    
-    setMonthlyArchive(prev => {
-      const existing = prev.filter(a => a.month !== month);
-      return [...existing, archive];
+  const updateFamilyPermissions = async (code: string, permissions: Partial<FamilyMember['permissions']>) => {
+    await save({
+      ...data,
+      familyMembers: data.familyMembers.map((member) =>
+        member.code === code ? { ...member, permissions: { ...member.permissions, ...permissions } } : member,
+      ),
     });
   };
 
+  const completeTutorial = async (screen: keyof Tutorial) => {
+    await save({
+      ...data,
+      tutorials: { ...data.tutorials, [screen]: true },
+    });
+  };
+
+  const archiveCurrentMonth = async () => {
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const archive: LegacyMonthlyArchive = {
+      month,
+      income: 0,
+      expenses: 0,
+      balance: 0,
+      data: {},
+    };
+
+    const existing = data.monthlyArchive.filter((a) => a.month !== month);
+    await save({ ...data, monthlyArchive: [...existing, archive] });
+  };
+
   const getArchiveByMonth = (month: string) => {
-    return monthlyArchive.find(a => a.month === month);
+    return data.monthlyArchive.find((a) => a.month === month);
   };
 
   const exportToCSV = () => {
-    // Mock CSV export - in real app would generate actual CSV
-    const csv = 'Data,Opis,Kwota\n2026-04-01,Przykład,100.00\n';
-    return csv;
+    return 'Data,Opis,Kwota\n2026-04-01,Przykład,100.00\n';
   };
 
   const exportToPDF = () => {
-    // Mock PDF export - in real app would use library like jsPDF
     console.log('Eksportowanie do PDF...');
   };
 
@@ -195,10 +224,10 @@ export function ExtendedAppProvider({ children }: { children: React.ReactNode })
     <ExtendedAppContext.Provider
       value={{
         expenseCategories,
-        notes,
-        monthlyArchive,
-        familyMembers,
-        tutorials,
+        notes: data.notes,
+        monthlyArchive: data.monthlyArchive,
+        familyMembers: data.familyMembers,
+        tutorials: data.tutorials,
         addNote,
         updateNote,
         deleteNote,
