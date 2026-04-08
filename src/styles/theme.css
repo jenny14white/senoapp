@@ -1,0 +1,220 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: oklch(1 0 0);
+  --popover-foreground: #1a1a1a;
+  --primary: #4b4c2c;
+  --primary-foreground: oklch(1 0 0);
+  --secondary: #f5f5f5;
+  --secondary-foreground: #4b4c2c;
+  --muted: #f5f5f5;
+  --muted-foreground: #525252;
+  --accent: #e9ebef;
+  --accent-foreground: #4b4c2c;
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: transparent;
+  --input-background: #f3f3f5;
+  --switch-background: #cbced4;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-primary: #4b4c2c;
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  
+  /* Light mode color palette */
+  --color-1: #4b4c2c;  /* ciemny oliwkowy */
+  --color-2: #797641;  /* średni oliwkowy */
+  --color-3: #9fa659;  /* jasny oliwkowy/żółtozielony */
+  --color-4: #efeeb6;  /* bardzo jasny beżowy/kremowy */
+  --color-5: #b7b094;  /* beżowy/taupe */
+}
+
+.dark {
+  --background: #2D0D25;
+  --foreground: #efeeb6;
+  --card: #2D0D25;
+  --card-foreground: #efeeb6;
+  --popover: #2D0D25;
+  --popover-foreground: #efeeb6;
+  --primary: #9A7490;
+  --primary-foreground: #2D0D25;
+  --secondary: #63335A;
+  --secondary-foreground: #efeeb6;
+  --muted: #63335A;
+  --muted-foreground: #9A7490;
+  --accent: #63335A;
+  --accent-foreground: #efeeb6;
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: #63335A;
+  --input: #63335A;
+  --ring: #7A7183;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: #9A7490;
+  --chart-2: #63335A;
+  --chart-3: #7A7183;
+  --chart-4: #2D2F26;
+  --chart-5: #9A7490;
+  --sidebar: #2D0D25;
+  --sidebar-foreground: #efeeb6;
+  --sidebar-primary: #9A7490;
+  --sidebar-primary-foreground: #2D0D25;
+  --sidebar-accent: #63335A;
+  --sidebar-accent-foreground: #efeeb6;
+  --sidebar-border: #63335A;
+  --sidebar-ring: #7A7183;
+  
+  /* Dark mode color palette */
+  --color-1: #2D0D25;  /* ciemny burgundowy/fioletowy - tło */
+  --color-2: #63335A;  /* średni fioletowy - karty */
+  --color-3: #9A7490;  /* jasny fioletowy/szary - akcenty */
+  --color-4: #7A7183;  /* szaro-fioletowy - borders */
+  --color-5: #2D2F26;  /* ciemny zielony/oliwkowy - dodatkowy */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /**
+  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
+  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  */
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h4 {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  label {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  button {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  input {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+
+  /* Theme-aware buttons */
+  .btn-primary {
+    background: linear-gradient(to right, var(--color-accent), var(--color-primary)) !important;
+    color: white !important;
+  }
+
+  .modal-bg {
+    background-color: var(--color-background) !important;
+  }
+
+  .card-bg {
+    background-color: var(--color-card-bg) !important;
+  }
+
+  /* Auto-apply theme to hardcoded gradient buttons */
+  button[class*="from-[#9fa659]"],
+  button[class*="from-[#797641]"] {
+    background: linear-gradient(to right, var(--color-accent), var(--color-primary)) !important;
+  }
+
+  /* Auto-apply theme to hardcoded modal backgrounds */
+  div[class*="dark:bg-[#17122A]"] {
+    background-color: var(--color-background) !important;
+  }
+}
